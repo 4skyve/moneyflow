@@ -21,7 +21,7 @@ import {
   balanceAdjustments,
   users,
 } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 async function requireUserId() {
@@ -163,6 +163,33 @@ export async function createSavingsAccount(fd: FormData) {
     icon: str(fd, "icon") || "piggy-bank",
   });
   revalidatePath("/savings");
+}
+
+export async function deleteSavingsAccount(id: string) {
+  const userId = await requireUserId();
+
+  const loans = await db
+    .select()
+    .from(savingsLoans)
+    .where(and(eq(savingsLoans.savingsAccountId, id), eq(savingsLoans.userId, userId)));
+  const hasOutstandingLoan = loans.some(
+    (l) => parseFloat(l.amount) - parseFloat(l.amountReturned) > 0
+  );
+  if (hasOutstandingLoan) {
+    throw new Error("Tidak bisa dihapus: masih ada pinjaman yang belum dikembalikan.");
+  }
+
+  await db.delete(savingsDetails).where(eq(savingsDetails.savingsAccountId, id));
+  await db.delete(savingsDeposits).where(and(eq(savingsDeposits.savingsAccountId, id), eq(savingsDeposits.userId, userId)));
+  const loanIds = loans.map((l) => l.id);
+  if (loanIds.length > 0) {
+    await db.delete(savingsLoanReturns).where(inArray(savingsLoanReturns.loanId, loanIds));
+  }
+  await db.delete(savingsLoans).where(and(eq(savingsLoans.savingsAccountId, id), eq(savingsLoans.userId, userId)));
+  await db.delete(savingsAccounts).where(and(eq(savingsAccounts.id, id), eq(savingsAccounts.userId, userId)));
+
+  revalidatePath("/savings");
+  revalidatePath("/dashboard");
 }
 
 export async function depositToSavings(fd: FormData) {

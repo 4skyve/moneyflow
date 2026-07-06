@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createSavingsAccount, depositToSavings, borrowFromSavings, returnLoan, addSavingsDetail } from "@/lib/actions";
+import { createSavingsAccount, depositToSavings, borrowFromSavings, returnLoan, addSavingsDetail, deleteSavingsAccount } from "@/lib/actions";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
 
@@ -75,6 +75,51 @@ export function ReturnLoanForm({ loanId, wallets, remaining }: { loanId: string;
         </form>
       )}
     </div>
+  );
+}
+
+export function DeleteSavingsAccountButton({ id, hasLoan }: { id: string; hasLoan: boolean }) {
+  const [confirming, setConfirming] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  if (hasLoan) {
+    return (
+      <span className="text-xs" style={{ color: "var(--text-muted)" }} title="Lunasi pinjaman dulu sebelum menghapus">
+        —
+      </span>
+    );
+  }
+
+  if (!confirming)
+    return (
+      <button onClick={() => setConfirming(true)} className="text-xs font-semibold" style={{ color: "var(--expense)" }}>
+        Hapus
+      </button>
+    );
+
+  return (
+    <span className="flex items-center gap-2 text-xs">
+      <button
+        disabled={isPending}
+        onClick={() =>
+          startTransition(async () => {
+            try {
+              await deleteSavingsAccount(id);
+              toast.success("Tabungan dihapus");
+            } catch (e: any) {
+              toast.error(e.message ?? "Gagal menghapus");
+            }
+          })
+        }
+        className="font-semibold"
+        style={{ color: "var(--expense)" }}
+      >
+        Yakin hapus?
+      </button>
+      <button onClick={() => setConfirming(false)} style={{ color: "var(--text-muted)" }}>
+        Batal
+      </button>
+    </span>
   );
 }
 

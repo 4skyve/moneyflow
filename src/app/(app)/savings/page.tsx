@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { getSavingsSummary } from "@/lib/balance";
 import PageHeader from "@/components/page-header";
 import { formatIDR } from "@/lib/utils";
-import { CreateSavingsForm, DepositForm, BorrowForm, ReturnLoanForm, DetailForm } from "./savings-forms";
+import { CreateSavingsForm, DepositForm, BorrowForm, ReturnLoanForm, DetailForm, DeleteSavingsAccountButton } from "./savings-forms";
 import { deleteSavingsDetail } from "@/lib/actions";
 import { X } from "lucide-react";
 
@@ -40,7 +40,10 @@ export default async function SavingsPage() {
             <div key={acc.id} className="mf-card p-4">
               <div className="flex items-center justify-between mb-2">
                 <p className="font-semibold" style={{ color: "var(--text)" }}>{acc.name}</p>
-                <p className="text-sm font-semibold mf-accent-text">{formatIDR(acc.savedAmount)}</p>
+                <div className="flex items-center gap-3">
+                  <p className="text-sm font-semibold mf-accent-text">{formatIDR(acc.savedAmount)}</p>
+                  <DeleteSavingsAccountButton id={acc.id} hasLoan={acc.outstandingLoan > 0} />
+                </div>
               </div>
 
               {acc.outstandingLoan > 0 && (
