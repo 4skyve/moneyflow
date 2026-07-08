@@ -4,7 +4,7 @@ import { savingsGoals, wallets } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import PageHeader from "@/components/page-header";
 import { formatIDR, formatDateFull } from "@/lib/utils";
-import { CreateGoalForm, ContributeForm } from "./goal-forms";
+import { CreateGoalForm, ContributeForm, DeleteGoalButton } from "./goal-forms";
 
 export default async function GoalsPage() {
   const session = await auth();
@@ -27,9 +27,12 @@ export default async function GoalsPage() {
                 <p className="font-semibold" style={{ color: "var(--text)" }}>
                   {g.achieved ? "🎉 " : ""}{g.name}
                 </p>
-                <span className="text-xs px-2 py-0.5 rounded-full mf-accent-soft-bg mf-accent-text font-semibold">
-                  {g.frequency === "weekly" ? "Mingguan" : g.frequency === "monthly" ? "Bulanan" : "Custom"}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs px-2 py-0.5 rounded-full mf-accent-soft-bg mf-accent-text font-semibold">
+                    {g.frequency === "weekly" ? "Mingguan" : g.frequency === "monthly" ? "Bulanan" : "Custom"}
+                  </span>
+                  <DeleteGoalButton id={g.id} />
+                </div>
               </div>
               <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
                 {formatIDR(g.currentAmount)} dari {formatIDR(g.targetAmount)}

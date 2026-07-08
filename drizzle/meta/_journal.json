@@ -8,6 +8,13 @@
       "when": 1783010903629,
       "tag": "0000_left_apocalypse",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1783483315604,
+      "tag": "0001_many_mantis",
+      "breakpoints": true
     }
   ]
 }

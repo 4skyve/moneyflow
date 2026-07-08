@@ -1,8 +1,5 @@
 import { auth } from "@/lib/auth";
-import { db } from "@/db";
-import { wallets, categories, transactions, savingsGoals, recurringExpenses, users, favoriteTransactions } from "@/db/schema";
-import { eq, and, desc, gte } from "drizzle-orm";
-import { getTotalBalance } from "@/lib/balance";
+import { getDashboardData } from "@/lib/queries";
 import { formatIDR } from "@/lib/utils";
 import QuickCapture from "@/components/quick-capture";
 import FavoritesStrip from "@/components/favorites-strip";
@@ -15,63 +12,25 @@ export default async function DashboardPage() {
   const session = await auth();
   const userId = (session?.user as any).id as string;
 
-  const [userWallets, userCategories, { saldoBebas, totalSavings, total }, [me]] = await Promise.all([
-    db.select().from(wallets).where(and(eq(wallets.userId, userId), eq(wallets.archived, false))),
-    db.select().from(categories).where(eq(categories.userId, userId)),
-    getTotalBalance(userId),
-    db.select({ name: users.name }).from(users).where(eq(users.id, userId)),
-  ]);
+  const {
+    name,
+    wallets: userWallets,
+    categories: userCategories,
+    saldoBebas,
+    totalSavings,
+    totalLoan,
+    total,
+    todayIncome,
+    todayExpense,
+    recentTransactions,
+    activeGoals,
+    favorites,
+    upcomingRecurring,
+  } = await getDashboardData(userId);
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-
-  const todayTx = await db
-    .select()
-    .from(transactions)
-    .where(
-      and(eq(transactions.userId, userId), eq(transactions.isDraft, false), gte(transactions.occurredAt, startOfToday))
-    );
-
-  const todayIncome = todayTx.filter((t) => t.type === "income").reduce((s, t) => s + parseFloat(t.amount), 0);
-  const todayExpense = todayTx.filter((t) => t.type === "expense").reduce((s, t) => s + parseFloat(t.amount), 0);
-
-  const recentTx = await db
-    .select({
-      id: transactions.id,
-      title: transactions.title,
-      amount: transactions.amount,
-      type: transactions.type,
-      occurredAt: transactions.occurredAt,
-      walletName: wallets.name,
-      categoryName: categories.name,
-    })
-    .from(transactions)
-    .leftJoin(wallets, eq(transactions.walletId, wallets.id))
-    .leftJoin(categories, eq(transactions.categoryId, categories.id))
-    .where(and(eq(transactions.userId, userId), eq(transactions.isDraft, false)))
-    .orderBy(desc(transactions.occurredAt))
-    .limit(6);
-
-  const activeGoals = await db
-    .select()
-    .from(savingsGoals)
-    .where(and(eq(savingsGoals.userId, userId), eq(savingsGoals.achieved, false)))
-    .limit(3);
-
-  const favorites = await db
-    .select()
-    .from(favoriteTransactions)
-    .where(eq(favoriteTransactions.userId, userId))
-    .limit(8);
-
-  const today = new Date().getDate();
-  const upcomingRecurring = await db
-    .select()
-    .from(recurringExpenses)
-    .where(and(eq(recurringExpenses.userId, userId), eq(recurringExpenses.active, true)));
-
-  const hour = new Date().getHours();
-  const greeting = hour < 11 ? "Selamat pagi" : hour < 15 ? "Selamat siang" : hour < 18 ? "Selamat sore" : "Selamat malam";
+  // Jam WIB (UTC+7) untuk sapaan, tidak bergantung timezone server.
+  const wibHour = (new Date().getUTCHours() + 7) % 24;
+  const greeting = wibHour < 11 ? "Selamat pagi" : wibHour < 15 ? "Selamat siang" : wibHour < 18 ? "Selamat sore" : "Selamat malam";
 
   return (
     <div className="max-w-5xl mx-auto px-4 md:px-8 py-6 md:py-8 space-y-6">
@@ -80,7 +39,7 @@ export default async function DashboardPage() {
           {greeting},
         </p>
         <h1 className="font-display text-2xl font-semibold" style={{ color: "var(--text)" }}>
-          {me?.name ?? "Kamu"} 👋
+          {name || "Kamu"} 👋
         </h1>
       </div>
 
@@ -88,7 +47,9 @@ export default async function DashboardPage() {
         <div className="mf-card p-5 mf-accent-bg" style={{ background: "var(--accent)" }}>
           <p className="text-xs opacity-90">Saldo Total</p>
           <p className="font-display text-xl font-semibold mt-1">{formatIDR(total)}</p>
-          <p className="text-[11px] opacity-80 mt-1">Termasuk tabungan {formatIDR(totalSavings)}</p>
+          <p className="text-[11px] opacity-80 mt-1">
+            Saldo bebas + tabungan{totalLoan > 0 ? ` (setelah dikurangi pinjaman ${formatIDR(totalLoan)})` : ""}
+          </p>
         </div>
         <div className="mf-card p-5">
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>
@@ -98,7 +59,7 @@ export default async function DashboardPage() {
             {formatIDR(saldoBebas)}
           </p>
           <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
-            Uang yang bisa dipakai
+            Uang di luar tabungan, bisa dipakai kapan pun
           </p>
         </div>
       </div>
@@ -197,15 +158,16 @@ export default async function DashboardPage() {
             Lihat semua
           </Link>
         </div>
-        {recentTx.length === 0 ? (
+        {recentTransactions.length === 0 ? (
           <p className="text-sm py-6 text-center" style={{ color: "var(--text-muted)" }}>
             Belum ada transaksi. Yuk catat yang pertama! ✨
           </p>
         ) : (
           <div className="divide-y" style={{ borderColor: "var(--border)" }}>
-            {recentTx.map((t) => (
+            {recentTransactions.map((t) => (
               <TransactionRow
                 key={t.id}
+                id={t.id}
                 title={t.title}
                 amount={t.amount}
                 type={t.type as "income" | "expense"}

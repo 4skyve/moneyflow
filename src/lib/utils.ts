@@ -5,6 +5,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Ditampilkan hard-code WIB (Asia/Jakarta, UTC+7) untuk semua pengguna sementara ini.
+const WIB_TZ = "Asia/Jakarta";
+
 export function formatIDR(amount: number | string) {
   const n = typeof amount === "string" ? parseFloat(amount) : amount;
   return new Intl.NumberFormat("id-ID", {
@@ -19,6 +22,7 @@ export function formatDateShort(date: Date | string) {
   return new Intl.DateTimeFormat("id-ID", {
     day: "numeric",
     month: "short",
+    timeZone: WIB_TZ,
   }).format(d);
 }
 
@@ -28,13 +32,17 @@ export function formatDateFull(date: Date | string) {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: WIB_TZ,
   }).format(d);
 }
 
 export function formatTime(date: Date | string) {
   const d = typeof date === "string" ? new Date(date) : date;
-  return new Intl.DateTimeFormat("id-ID", {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(d);
+  return (
+    new Intl.DateTimeFormat("id-ID", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: WIB_TZ,
+    }).format(d) + " WIB"
+  );
 }

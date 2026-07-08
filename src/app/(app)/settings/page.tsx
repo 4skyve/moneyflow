@@ -1,11 +1,11 @@
-import { auth } from "@/lib/auth";
+import { auth, signOut } from "@/lib/auth";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import PageHeader from "@/components/page-header";
 import ThemePicker from "./theme-picker";
 import Link from "next/link";
-import { FileDown } from "lucide-react";
+import { FileDown, LogOut } from "lucide-react";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -39,6 +39,21 @@ export default async function SettingsPage() {
           Kelola Kategori →
         </Link>
       </div>
+
+      <form
+        action={async () => {
+          "use server";
+          await signOut({ redirectTo: "/login" });
+        }}
+      >
+        <button
+          type="submit"
+          className="w-full mf-card p-4 flex items-center justify-center gap-2 text-sm font-semibold"
+          style={{ color: "var(--expense)" }}
+        >
+          <LogOut size={16} /> Keluar Akun
+        </button>
+      </form>
     </div>
   );
 }

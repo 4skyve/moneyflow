@@ -5,6 +5,6 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "mysql",
   dbCredentials: {
-    url: process.env.DATABASE_URL || "mysql://user:pass@localhost:3306/moneyflow",
+    url: process.env.DATABASE_URL || "mysql://root:VAKdCIJPnneXtIMRaDcxTRNaSVDFTRtC@hayabusa.proxy.rlwy.net:39999/railway",
   },
 });

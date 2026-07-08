@@ -6,6 +6,7 @@ import PageHeader from "@/components/page-header";
 import TransactionRow from "@/components/transaction-row";
 import { formatDateFull } from "@/lib/utils";
 import NoteForm from "./note-form";
+import DeleteNoteButton from "./delete-note-button";
 import FilterSelect from "./filter-select";
 import { Search } from "lucide-react";
 
@@ -100,6 +101,7 @@ export default async function TransactionsPage({
                 {txs.map((t) => (
                   <TransactionRow
                     key={t.id}
+                    id={t.id}
                     title={t.title}
                     amount={t.amount}
                     type={t.type as "income" | "expense"}
@@ -121,11 +123,14 @@ export default async function TransactionsPage({
           </p>
           <div className="space-y-2">
             {notes.map((n) => (
-              <div key={n.id} className="mf-card p-3 text-sm" style={{ color: "var(--text)" }}>
-                <p>{n.content}</p>
-                <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
-                  {formatDateFull(n.occurredAt)}
-                </p>
+              <div key={n.id} className="mf-card p-3 text-sm flex items-start justify-between gap-2" style={{ color: "var(--text)" }}>
+                <div>
+                  <p>{n.content}</p>
+                  <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
+                    {formatDateFull(n.occurredAt)}
+                  </p>
+                </div>
+                <DeleteNoteButton id={n.id} />
               </div>
             ))}
           </div>

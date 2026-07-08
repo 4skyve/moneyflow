@@ -1,9 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createGoal, contributeToGoal } from "@/lib/actions";
+import { createGoal, contributeToGoal, deleteGoal } from "@/lib/actions";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
+import ConfirmDeleteButton from "@/components/confirm-delete-button";
+
+export function DeleteGoalButton({ id }: { id: string }) {
+  return <ConfirmDeleteButton onDelete={() => deleteGoal(id)} successMessage="Target dihapus" />;
+}
 
 type Wallet = { id: string; name: string };
 

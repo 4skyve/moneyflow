@@ -125,6 +125,9 @@ export const savingsAccounts = mysqlTable(
     userId: varchar("user_id", { length: 36 }).notNull(),
     name: varchar("name", { length: 100 }).notNull(),
     icon: varchar("icon", { length: 20 }).default("piggy-bank").notNull(),
+    startingBalance: decimal("starting_balance", { precision: 14, scale: 2 })
+      .default("0")
+      .notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => ({ userIdx: index("savings_user_idx").on(t.userId) })

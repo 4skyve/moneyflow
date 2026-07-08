@@ -17,30 +17,17 @@ import { eq, and } from "drizzle-orm";
  *  - loanReturnOut (mengembalikan pinjaman) + adjustments
  */
 export async function getWalletBalances(userId: string) {
-  const userWallets = await db
-    .select()
-    .from(wallets)
-    .where(and(eq(wallets.userId, userId), eq(wallets.archived, false)));
+  const [userWallets, allTx, allTransfers, deposits, loans, adjustments] = await Promise.all([
+    db.select().from(wallets).where(and(eq(wallets.userId, userId), eq(wallets.archived, false))),
+    db.select().from(transactions).where(and(eq(transactions.userId, userId), eq(transactions.isDraft, false))),
+    db.select().from(transfers).where(eq(transfers.userId, userId)),
+    db.select().from(savingsDeposits).where(eq(savingsDeposits.userId, userId)),
+    db.select().from(savingsLoans).where(eq(savingsLoans.userId, userId)),
+    db.select().from(balanceAdjustments).where(eq(balanceAdjustments.userId, userId)),
+  ]);
 
-  const allTx = await db
-    .select()
-    .from(transactions)
-    .where(and(eq(transactions.userId, userId), eq(transactions.isDraft, false)));
-
-  const allTransfers = await db.select().from(transfers).where(eq(transfers.userId, userId));
-  const deposits = await db
-    .select()
-    .from(savingsDeposits)
-    .where(eq(savingsDeposits.userId, userId));
-  const loans = await db.select().from(savingsLoans).where(eq(savingsLoans.userId, userId));
   const loanIds = loans.map((l) => l.id);
-  const loanReturns = loanIds.length
-    ? await db.select().from(savingsLoanReturns)
-    : [];
-  const adjustments = await db
-    .select()
-    .from(balanceAdjustments)
-    .where(eq(balanceAdjustments.userId, userId));
+  const loanReturns = loanIds.length ? await db.select().from(savingsLoanReturns) : [];
 
   const balances = new Map<string, number>();
   for (const w of userWallets) balances.set(w.id, parseFloat(w.startingBalance));
@@ -82,14 +69,16 @@ export async function getSaldoBebas(userId: string) {
 }
 
 export async function getSavingsSummary(userId: string) {
-  const accounts = await db.select().from(savingsAccounts).where(eq(savingsAccounts.userId, userId));
-  const deposits = await db.select().from(savingsDeposits).where(eq(savingsDeposits.userId, userId));
-  const loans = await db.select().from(savingsLoans).where(eq(savingsLoans.userId, userId));
-  const details = await db.select().from(savingsDetails);
+  const [accounts, deposits, loans, details] = await Promise.all([
+    db.select().from(savingsAccounts).where(eq(savingsAccounts.userId, userId)),
+    db.select().from(savingsDeposits).where(eq(savingsDeposits.userId, userId)),
+    db.select().from(savingsLoans).where(eq(savingsLoans.userId, userId)),
+    db.select().from(savingsDetails),
+  ]);
 
   const result = accounts.map((acc) => {
     const accDeposits = deposits.filter((d) => d.savingsAccountId === acc.id);
-    const savedAmount = accDeposits.reduce(
+    const savedAmount = parseFloat(acc.startingBalance) + accDeposits.reduce(
       (sum, d) => sum + (d.direction === "in" ? parseFloat(d.amount) : -parseFloat(d.amount)),
       0
     );
@@ -114,7 +103,14 @@ export async function getSavingsSummary(userId: string) {
 }
 
 export async function getTotalBalance(userId: string) {
-  const saldoBebas = await getSaldoBebas(userId);
-  const { totalSavings } = await getSavingsSummary(userId);
-  return { saldoBebas, totalSavings, total: saldoBebas + totalSavings };
+  const [saldoBebas, { totalSavings, totalLoan }] = await Promise.all([
+    getSaldoBebas(userId),
+    getSavingsSummary(userId),
+  ]);
+  // Saldo Total = Saldo Bebas + Tabungan Tetap - Pinjaman Tabungan yang belum dikembalikan.
+  // Pinjaman dikurangi di sini karena tampilan "Tabungan Tetap" per akun sengaja TIDAK
+  // dikurangi (tetap tercatat sesuai instruksi awal), padahal uangnya sudah pindah ke
+  // dompet (Saldo Bebas). Tanpa pengurangan ini, uang yang sama akan terhitung dua kali.
+  const total = saldoBebas + totalSavings - totalLoan;
+  return { saldoBebas, totalSavings, totalLoan, total };
 }

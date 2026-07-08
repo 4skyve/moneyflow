@@ -4,7 +4,7 @@ import { wishlistItems } from "@/db/schema";
 import { eq, desc } from "drizzle-orm";
 import PageHeader from "@/components/page-header";
 import { formatIDR } from "@/lib/utils";
-import { CreateWishlistForm, WishlistActions } from "./wishlist-forms";
+import { CreateWishlistForm, WishlistActions, DeleteWishlistButton } from "./wishlist-forms";
 
 const STATUS_LABEL: Record<string, string> = {
   wishing: "Ingin",
@@ -29,9 +29,12 @@ export default async function WishlistPage() {
             <div key={it.id} className="mf-card p-4">
               <div className="flex items-center justify-between mb-1">
                 <p className="font-semibold" style={{ color: "var(--text)" }}>{it.name}</p>
-                <span className="text-xs px-2 py-0.5 rounded-full mf-accent-soft-bg mf-accent-text font-semibold">
-                  {STATUS_LABEL[it.status]}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs px-2 py-0.5 rounded-full mf-accent-soft-bg mf-accent-text font-semibold">
+                    {STATUS_LABEL[it.status]}
+                  </span>
+                  <DeleteWishlistButton id={it.id} />
+                </div>
               </div>
               <p className="text-xs mb-2" style={{ color: "var(--text-muted)" }}>
                 {formatIDR(it.currentAmount)} / {formatIDR(it.targetPrice)}

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createRecurring, toggleRecurring } from "@/lib/actions";
+import { createRecurring, toggleRecurring, deleteRecurring } from "@/lib/actions";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
+import ConfirmDeleteButton from "@/components/confirm-delete-button";
 
 export default function RecurringForm() {
   const [open, setOpen] = useState(false);
@@ -27,6 +28,10 @@ export default function RecurringForm() {
       </div>
     </form>
   );
+}
+
+export function DeleteRecurringButton({ id }: { id: string }) {
+  return <ConfirmDeleteButton onDelete={() => deleteRecurring(id)} successMessage="Reminder dihapus" />;
 }
 
 export function ToggleButton({ id, active }: { id: string; active: boolean }) {

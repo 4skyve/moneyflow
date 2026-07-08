@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createSavingsAccount, depositToSavings, borrowFromSavings, returnLoan, addSavingsDetail, deleteSavingsAccount } from "@/lib/actions";
+import { createSavingsAccount, borrowFromSavings, returnLoan, addSavingsDetail, deleteSavingsAccount, moveBalanceToSavings } from "@/lib/actions";
 import { toast } from "sonner";
-import { Plus } from "lucide-react";
+import { Plus, ArrowDownToLine, ArrowUpFromLine, ListPlus } from "lucide-react";
 
 type Wallet = { id: string; name: string };
 
@@ -19,6 +19,13 @@ export function CreateSavingsForm() {
   return (
     <form action={(fd) => startTransition(async () => { await createSavingsAccount(fd); setOpen(false); toast.success("Tabungan dibuat"); })} className="mf-card p-4 space-y-3">
       <input name="name" required placeholder="Nama tabungan, mis. Laptop Baru" className="mf-input" />
+      <div>
+        <input name="startingBalance" type="number" step="0.01" placeholder="Saldo awal (opsional)" className="mf-input" />
+        <p className="text-[11px] mt-1" style={{ color: "var(--text-muted)" }}>
+          Isi kalau kamu sudah punya tabungan ini sebelumnya (di luar dompet manapun di app ini) — nominal ini
+          TIDAK akan mengurangi Saldo Bebas.
+        </p>
+      </div>
       <div className="flex gap-2">
         <button type="submit" disabled={isPending} className="mf-accent-bg rounded-xl px-4 py-2 text-sm font-semibold flex-1">Simpan</button>
         <button type="button" onClick={() => setOpen(false)} className="text-sm px-4" style={{ color: "var(--text-muted)" }}>Batal</button>
@@ -27,17 +34,60 @@ export function CreateSavingsForm() {
   );
 }
 
-export function DepositForm({ savingsAccountId, wallets }: { savingsAccountId: string; wallets: Wallet[] }) {
+export function MoveToSavingsForm({ savingsAccountId, wallets, hasOutstandingLoan }: { savingsAccountId: string; wallets: Wallet[]; hasOutstandingLoan: boolean }) {
   const [open, setOpen] = useState(false);
+  const [purpose, setPurpose] = useState<"deposit" | "repay_loan">("deposit");
   const [isPending, startTransition] = useTransition();
+
   return (
     <div>
-      <button onClick={() => setOpen(!open)} className="text-xs font-semibold mf-accent-text">+ Setor</button>
+      <button onClick={() => setOpen(!open)} className="text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5 mf-accent-soft-bg mf-accent-text">
+        <ArrowDownToLine size={14} /> Pindahkan Saldo
+      </button>
       {open && (
-        <form action={(fd) => { fd.set("savingsAccountId", savingsAccountId); startTransition(async () => { await depositToSavings(fd); setOpen(false); toast.success("Berhasil menyetor"); }); }} className="mt-2 space-y-2 mf-card p-3">
-          <select name="walletId" required className="mf-input text-xs">{wallets.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
+        <form
+          action={(fd) => {
+            fd.set("savingsAccountId", savingsAccountId);
+            fd.set("purpose", purpose);
+            startTransition(async () => {
+              try {
+                await moveBalanceToSavings(fd);
+                setOpen(false);
+                toast.success(purpose === "repay_loan" ? "Pinjaman dibayar" : "Berhasil menyetor");
+              } catch (e: any) {
+                toast.error(e.message ?? "Gagal memindahkan saldo");
+              }
+            });
+          }}
+          className="mt-2 space-y-2 mf-card p-3"
+        >
+          {hasOutstandingLoan && (
+            <div className="flex rounded-full p-1 text-[11px] font-semibold" style={{ background: "var(--card-bg-soft)" }}>
+              <button
+                type="button"
+                onClick={() => setPurpose("deposit")}
+                className="flex-1 px-2 py-1 rounded-full transition"
+                style={{ background: purpose === "deposit" ? "var(--accent)" : "transparent", color: purpose === "deposit" ? "#fff" : "var(--text-muted)" }}
+              >
+                Nambah Tabungan
+              </button>
+              <button
+                type="button"
+                onClick={() => setPurpose("repay_loan")}
+                className="flex-1 px-2 py-1 rounded-full transition"
+                style={{ background: purpose === "repay_loan" ? "var(--accent)" : "transparent", color: purpose === "repay_loan" ? "#fff" : "var(--text-muted)" }}
+              >
+                Bayar Pinjaman
+              </button>
+            </div>
+          )}
+          <select name="walletId" required className="mf-input text-xs">
+            {wallets.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+          </select>
           <input name="amount" type="number" step="0.01" required placeholder="Nominal" className="mf-input text-xs" />
-          <button type="submit" disabled={isPending} className="mf-accent-bg rounded-lg px-3 py-1.5 text-xs font-semibold w-full">Setor</button>
+          <button type="submit" disabled={isPending} className="mf-accent-bg rounded-lg px-3 py-1.5 text-xs font-semibold w-full">
+            {purpose === "repay_loan" ? "Bayar Pinjaman" : "Setor"}
+          </button>
         </form>
       )}
     </div>
@@ -49,7 +99,9 @@ export function BorrowForm({ savingsAccountId, wallets }: { savingsAccountId: st
   const [isPending, startTransition] = useTransition();
   return (
     <div>
-      <button onClick={() => setOpen(!open)} className="text-xs font-semibold" style={{ color: "var(--expense)" }}>+ Ambil (Pinjam)</button>
+      <button onClick={() => setOpen(!open)} className="text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5" style={{ background: "var(--expense-soft)", color: "var(--expense)" }}>
+        <ArrowUpFromLine size={14} /> Ambil (Pinjam)
+      </button>
       {open && (
         <form action={(fd) => { fd.set("savingsAccountId", savingsAccountId); startTransition(async () => { await borrowFromSavings(fd); setOpen(false); toast.success("Uang dipindah ke dompet, tercatat sebagai pinjaman"); }); }} className="mt-2 space-y-2 mf-card p-3">
           <select name="walletId" required className="mf-input text-xs">{wallets.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}</select>
@@ -128,7 +180,9 @@ export function DetailForm({ savingsAccountId }: { savingsAccountId: string }) {
   const [isPending, startTransition] = useTransition();
   return (
     <div>
-      <button onClick={() => setOpen(!open)} className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>+ Rincian</button>
+      <button onClick={() => setOpen(!open)} className="text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5" style={{ background: "var(--card-bg-soft)", color: "var(--text-muted)" }}>
+        <ListPlus size={14} /> Rincian
+      </button>
       {open && (
         <form action={(fd) => { fd.set("savingsAccountId", savingsAccountId); startTransition(async () => { await addSavingsDetail(fd); setOpen(false); }); }} className="mt-2 space-y-2 mf-card p-3">
           <input name="label" required placeholder="Mis. Bank BCA" className="mf-input text-xs" />

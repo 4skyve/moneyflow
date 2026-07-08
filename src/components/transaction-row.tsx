@@ -1,15 +1,17 @@
 import { formatIDR, formatDateShort, formatTime } from "@/lib/utils";
 import * as Icons from "lucide-react";
+import DeleteTransactionButton from "@/components/delete-transaction-button";
 
 export default function TransactionRow({
+  id,
   title,
   amount,
   type,
   categoryName,
-  categoryColor,
   walletName,
   occurredAt,
 }: {
+  id?: string;
   title: string;
   amount: string | number;
   type: "income" | "expense";
@@ -20,7 +22,7 @@ export default function TransactionRow({
 }) {
   const Icon = type === "income" ? Icons.ArrowDownLeft : Icons.ArrowUpRight;
   return (
-    <div className="flex items-center justify-between py-2.5">
+    <div className="flex items-center justify-between py-2.5 gap-2">
       <div className="flex items-center gap-3 min-w-0">
         <div
           className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
@@ -37,13 +39,16 @@ export default function TransactionRow({
           </p>
         </div>
       </div>
-      <span
-        className="text-sm font-semibold shrink-0 ml-2"
-        style={{ color: type === "income" ? "var(--income)" : "var(--expense)" }}
-      >
-        {type === "income" ? "+" : "-"}
-        {formatIDR(amount)}
-      </span>
+      <div className="flex items-center gap-3 shrink-0">
+        <span
+          className="text-sm font-semibold"
+          style={{ color: type === "income" ? "var(--income)" : "var(--expense)" }}
+        >
+          {type === "income" ? "+" : "-"}
+          {formatIDR(amount)}
+        </span>
+        {id && <DeleteTransactionButton id={id} />}
+      </div>
     </div>
   );
 }

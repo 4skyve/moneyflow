@@ -1,9 +1,20 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createWallet, createTransfer, createAdjustment } from "@/lib/actions";
+import { createWallet, createTransfer, createAdjustment, archiveWallet } from "@/lib/actions";
 import { toast } from "sonner";
 import { Plus, ArrowRightLeft, SlidersHorizontal } from "lucide-react";
+import ConfirmDeleteButton from "@/components/confirm-delete-button";
+
+export function ArchiveWalletButton({ id }: { id: string }) {
+  return (
+    <ConfirmDeleteButton
+      onDelete={() => archiveWallet(id)}
+      successMessage="Dompet diarsipkan"
+      confirmLabel="Arsipkan?"
+    />
+  );
+}
 
 type Wallet = { id: string; name: string; balance: number };
 

@@ -4,7 +4,7 @@ import { recurringExpenses } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import PageHeader from "@/components/page-header";
 import { formatIDR } from "@/lib/utils";
-import RecurringForm, { ToggleButton } from "./recurring-form";
+import RecurringForm, { ToggleButton, DeleteRecurringButton } from "./recurring-form";
 
 export default async function RecurringPage() {
   const session = await auth();
@@ -22,7 +22,10 @@ export default async function RecurringPage() {
               <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>{r.name}</p>
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>Setiap tanggal {r.dayOfMonth} · {formatIDR(r.amount)}</p>
             </div>
-            <ToggleButton id={r.id} active={r.active} />
+            <div className="flex items-center gap-3">
+              <ToggleButton id={r.id} active={r.active} />
+              <DeleteRecurringButton id={r.id} />
+            </div>
           </div>
         ))}
       </div>

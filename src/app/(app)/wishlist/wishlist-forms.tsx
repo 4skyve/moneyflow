@@ -1,9 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createWishlistItem, updateWishlistProgress, updateWishlistStatus } from "@/lib/actions";
+import { createWishlistItem, updateWishlistProgress, updateWishlistStatus, deleteWishlistItem } from "@/lib/actions";
 import { toast } from "sonner";
 import { Plus } from "lucide-react";
+import ConfirmDeleteButton from "@/components/confirm-delete-button";
+
+export function DeleteWishlistButton({ id }: { id: string }) {
+  return <ConfirmDeleteButton onDelete={() => deleteWishlistItem(id)} successMessage="Wishlist dihapus" />;
+}
 
 export function CreateWishlistForm() {
   const [open, setOpen] = useState(false);

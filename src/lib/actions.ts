@@ -1,6 +1,5 @@
 "use server";
 
-import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import {
   wallets,
@@ -24,9 +23,10 @@ import {
 import { eq, and, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
+import { getCurrentUserId } from "@/lib/auth-context";
+
 async function requireUserId() {
-  const session = await auth();
-  const userId = (session?.user as any)?.id as string | undefined;
+  const userId = await getCurrentUserId();
   if (!userId) throw new Error("Unauthorized");
   return userId;
 }
@@ -161,8 +161,10 @@ export async function createSavingsAccount(fd: FormData) {
     userId,
     name: str(fd, "name"),
     icon: str(fd, "icon") || "piggy-bank",
+    startingBalance: num(fd, "startingBalance").toString(),
   });
   revalidatePath("/savings");
+  revalidatePath("/dashboard");
 }
 
 export async function deleteSavingsAccount(id: string) {
@@ -394,4 +396,121 @@ export async function updateThemeSettings(theme: string, mode: string) {
   const userId = await requireUserId();
   await db.update(users).set({ theme, mode: mode as any }).where(eq(users.id, userId));
   revalidatePath("/", "layout");
+}
+
+// ---------- DELETE: WISHLIST ----------
+export async function deleteWishlistItem(id: string) {
+  const userId = await requireUserId();
+  await db.delete(wishlistItems).where(and(eq(wishlistItems.id, id), eq(wishlistItems.userId, userId)));
+  revalidatePath("/wishlist");
+}
+
+// ---------- DELETE: SAVINGS GOAL (Target Menabung) ----------
+export async function deleteGoal(id: string) {
+  const userId = await requireUserId();
+  await db.delete(savingsGoalContributions).where(eq(savingsGoalContributions.goalId, id));
+  await db.delete(savingsGoals).where(and(eq(savingsGoals.id, id), eq(savingsGoals.userId, userId)));
+  revalidatePath("/goals");
+  revalidatePath("/dashboard");
+}
+
+// ---------- DELETE: RECURRING (Pengeluaran Rutin) ----------
+export async function deleteRecurring(id: string) {
+  const userId = await requireUserId();
+  await db.delete(recurringExpenses).where(and(eq(recurringExpenses.id, id), eq(recurringExpenses.userId, userId)));
+  revalidatePath("/recurring");
+  revalidatePath("/dashboard");
+}
+
+// ---------- DELETE: DAILY NOTE ----------
+export async function deleteNote(id: string) {
+  const userId = await requireUserId();
+  await db.delete(dailyNotes).where(and(eq(dailyNotes.id, id), eq(dailyNotes.userId, userId)));
+  revalidatePath("/transactions");
+}
+
+// ---------- DELETE: FAVORITE TRANSACTION ----------
+export async function deleteFavorite(id: string) {
+  const userId = await requireUserId();
+  await db.delete(favoriteTransactions).where(and(eq(favoriteTransactions.id, id), eq(favoriteTransactions.userId, userId)));
+  revalidatePath("/dashboard");
+}
+
+// ---------- MOVE SALDO BEBAS -> TABUNGAN ----------
+/**
+ * Satu form untuk memindahkan uang dari dompet ke tabungan, dengan dua tujuan:
+ * - "deposit": nambah saldo tabungan biasa (sama seperti depositToSavings)
+ * - "repay_loan": uangnya dipakai membayar pinjaman tabungan yang masih berjalan
+ *   di akun tabungan itu (FIFO: pinjaman yang paling lama diambil dilunasi duluan)
+ * Pengguna cukup pilih tabungan mana & tujuannya; sisanya dihitung otomatis.
+ */
+export async function moveBalanceToSavings(fd: FormData) {
+  const userId = await requireUserId();
+  const savingsAccountId = str(fd, "savingsAccountId");
+  const walletId = str(fd, "walletId");
+  const amount = num(fd, "amount");
+  const purpose = str(fd, "purpose") || "deposit"; // "deposit" | "repay_loan"
+  const note = str(fd, "note") || null;
+
+  if (amount <= 0) throw new Error("Nominal harus lebih dari 0");
+
+  if (purpose === "repay_loan") {
+    const openLoans = await db
+      .select()
+      .from(savingsLoans)
+      .where(and(eq(savingsLoans.savingsAccountId, savingsAccountId), eq(savingsLoans.userId, userId)));
+
+    const outstanding = openLoans
+      .filter((l) => parseFloat(l.amountReturned) < parseFloat(l.amount))
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
+
+    if (outstanding.length === 0) {
+      throw new Error("Tidak ada pinjaman yang perlu dibayar di tabungan ini");
+    }
+
+    let remaining = amount;
+    for (const loan of outstanding) {
+      if (remaining <= 0) break;
+      const loanRemaining = parseFloat(loan.amount) - parseFloat(loan.amountReturned);
+      const pay = Math.min(remaining, loanRemaining);
+
+      await db.insert(savingsLoanReturns).values({
+        loanId: loan.id,
+        walletId,
+        amount: pay.toString(),
+        occurredAt: new Date(),
+      });
+      await db
+        .update(savingsLoans)
+        .set({ amountReturned: (parseFloat(loan.amountReturned) + pay).toString() })
+        .where(eq(savingsLoans.id, loan.id));
+
+      remaining -= pay;
+    }
+    // Kalau ada sisa uang setelah semua pinjaman lunas, masukkan sebagai setoran biasa.
+    if (remaining > 0) {
+      await db.insert(savingsDeposits).values({
+        userId,
+        savingsAccountId,
+        walletId,
+        amount: remaining.toString(),
+        direction: "in",
+        note: note ? `${note} (sisa setelah lunasi pinjaman)` : "Sisa setelah lunasi pinjaman",
+        occurredAt: new Date(),
+      });
+    }
+  } else {
+    await db.insert(savingsDeposits).values({
+      userId,
+      savingsAccountId,
+      walletId,
+      amount: amount.toString(),
+      direction: "in",
+      note,
+      occurredAt: new Date(),
+    });
+  }
+
+  revalidatePath("/savings");
+  revalidatePath("/dashboard");
 }
