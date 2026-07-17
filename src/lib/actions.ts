@@ -209,6 +209,54 @@ export async function depositToSavings(fd: FormData) {
   revalidatePath("/dashboard");
 }
 
+/**
+ * Menarik/menggunakan tabungan secara PERMANEN — beda dengan borrowFromSavings
+ * (Ambil/Pinjam) yang mencatat hutang dan wajib dikembalikan. Ini untuk kasus
+ * "target sudah tercapai, uangnya benar-benar dipakai/ditarik", jadi catatan
+ * Tabungan Tetap ikut BERKURANG (tidak seperti Pinjaman yang tetap tercatat utuh).
+ */
+export async function withdrawFromSavings(fd: FormData) {
+  const userId = await requireUserId();
+  const savingsAccountId = str(fd, "savingsAccountId");
+  const amount = num(fd, "amount");
+
+  const [account] = await db
+    .select()
+    .from(savingsAccounts)
+    .where(and(eq(savingsAccounts.id, savingsAccountId), eq(savingsAccounts.userId, userId)));
+  if (!account) throw new Error("Tabungan tidak ditemukan");
+
+  const [deposits, loans] = await Promise.all([
+    db.select().from(savingsDeposits).where(eq(savingsDeposits.savingsAccountId, savingsAccountId)),
+    db.select().from(savingsLoans).where(eq(savingsLoans.savingsAccountId, savingsAccountId)),
+  ]);
+  const savedAmount =
+    parseFloat(account.startingBalance) +
+    deposits.reduce((s, d) => s + (d.direction === "in" ? parseFloat(d.amount) : -parseFloat(d.amount)), 0);
+  const outstandingLoan = loans.reduce((s, l) => s + (parseFloat(l.amount) - parseFloat(l.amountReturned)), 0);
+  const available = savedAmount - outstandingLoan;
+
+  if (amount > available) {
+    throw new Error(`Saldo tabungan yang bisa ditarik cuma ${formatIDRShort(available)}`);
+  }
+
+  await db.insert(savingsDeposits).values({
+    userId,
+    savingsAccountId,
+    walletId: str(fd, "walletId"),
+    amount: amount.toString(),
+    direction: "out",
+    note: str(fd, "note") || null,
+    occurredAt: new Date(),
+  });
+  revalidatePath("/savings");
+  revalidatePath("/dashboard");
+}
+
+function formatIDRShort(n: number) {
+  return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
+}
+
 export async function addSavingsDetail(fd: FormData) {
   await requireUserId();
   await db.insert(savingsDetails).values({

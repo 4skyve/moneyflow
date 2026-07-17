@@ -3,10 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signIn } from "next-auth/react";
 import { toast } from "sonner";
 
-export default function LoginPage() {
+export default function ForgotPasswordPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -14,30 +13,35 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     const fd = new FormData(e.currentTarget);
-    const res = await signIn("credentials", {
-      email: fd.get("email"),
-      password: fd.get("password"),
-      redirect: false,
+    const email = fd.get("email") as string;
+
+    const res = await fetch("/api/v1/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+      headers: { "Content-Type": "application/json" },
     });
+    const json = await res.json();
     setLoading(false);
-    if (res?.error) {
-      toast.error("Email atau password salah");
+
+    if (!json.success) {
+      toast.error(json.error?.message ?? "Gagal mengirim kode");
       return;
     }
-    router.push("/dashboard");
-    router.refresh();
+
+    toast.success("Kalau email kamu terdaftar, kode sudah dikirim. Cek inbox/spam ya.");
+    router.push(`/reset-password?email=${encodeURIComponent(email)}`);
   }
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-10" style={{ background: "var(--page-bg)" }}>
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="text-4xl mb-2">💸</div>
+          <div className="text-4xl mb-2">🔑</div>
           <h1 className="font-display text-2xl font-semibold" style={{ color: "var(--text)" }}>
-            Selamat datang lagi
+            Lupa password?
           </h1>
           <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-            Masuk untuk lanjut mencatat keuanganmu.
+            Masukkan email akunmu, kami kirim kode reset ke sana.
           </p>
         </div>
 
@@ -53,37 +57,20 @@ export default function LoginPage() {
               style={{ background: "var(--card-bg-soft)", borderColor: "var(--border)", color: "var(--text)" }}
             />
           </label>
-          <label className="block">
-            <span className="text-xs font-semibold" style={{ color: "var(--text-muted)" }}>Password</span>
-            <input
-              name="password"
-              type="password"
-              required
-              placeholder="••••••••"
-              className="mt-1 w-full rounded-xl px-4 py-2.5 text-sm outline-none border"
-              style={{ background: "var(--card-bg-soft)", borderColor: "var(--border)", color: "var(--text)" }}
-            />
-          </label>
-
-          <div className="text-right -mt-2">
-            <Link href="/forgot-password" className="text-xs font-semibold mf-accent-text">
-              Lupa password?
-            </Link>
-          </div>
 
           <button
             type="submit"
             disabled={loading}
             className="w-full mf-accent-bg rounded-xl py-3 font-semibold text-sm disabled:opacity-60 transition"
           >
-            {loading ? "Masuk..." : "Masuk"}
+            {loading ? "Mengirim..." : "Kirim Kode Reset"}
           </button>
         </form>
 
         <p className="text-center text-sm mt-5" style={{ color: "var(--text-muted)" }}>
-          Belum punya akun?{" "}
-          <Link href="/register" className="mf-accent-text font-semibold">
-            Daftar
+          Ingat password lagi?{" "}
+          <Link href="/login" className="mf-accent-text font-semibold">
+            Masuk
           </Link>
         </p>
       </div>

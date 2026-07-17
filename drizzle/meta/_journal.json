@@ -15,6 +15,13 @@
       "when": 1783483315604,
       "tag": "0001_many_mantis",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1784255242521,
+      "tag": "0002_round_dreadnoughts",
+      "breakpoints": true
     }
   ]
 }

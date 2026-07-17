@@ -31,6 +31,20 @@ export const users = mysqlTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// ---------- PASSWORD RESET (OTP by email) ----------
+export const passwordResetCodes = mysqlTable(
+  "password_reset_codes",
+  {
+    id: id(),
+    userId: varchar("user_id", { length: 36 }).notNull(),
+    code: varchar("code", { length: 6 }).notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    used: boolean("used").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => ({ userIdx: index("reset_codes_user_idx").on(t.userId) })
+);
+
 // ---------- WALLETS ----------
 export const wallets = mysqlTable(
   "wallets",

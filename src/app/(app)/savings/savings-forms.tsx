@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createSavingsAccount, borrowFromSavings, returnLoan, addSavingsDetail, deleteSavingsAccount, moveBalanceToSavings } from "@/lib/actions";
+import { createSavingsAccount, borrowFromSavings, withdrawFromSavings, returnLoan, addSavingsDetail, deleteSavingsAccount, moveBalanceToSavings } from "@/lib/actions";
 import { toast } from "sonner";
-import { Plus, ArrowDownToLine, ArrowUpFromLine, ListPlus } from "lucide-react";
+import { Plus, ArrowDownToLine, ArrowUpFromLine, ListPlus, Wallet as WalletIcon } from "lucide-react";
 
 type Wallet = { id: string; name: string };
 
@@ -87,6 +87,47 @@ export function MoveToSavingsForm({ savingsAccountId, wallets, hasOutstandingLoa
           <input name="amount" type="number" step="0.01" required placeholder="Nominal" className="mf-input text-xs" />
           <button type="submit" disabled={isPending} className="mf-accent-bg rounded-lg px-3 py-1.5 text-xs font-semibold w-full">
             {purpose === "repay_loan" ? "Bayar Pinjaman" : "Setor"}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+export function WithdrawForm({ savingsAccountId, wallets, available }: { savingsAccountId: string; wallets: Wallet[]; available: number }) {
+  const [open, setOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+  return (
+    <div>
+      <button onClick={() => setOpen(!open)} className="text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5" style={{ background: "var(--card-bg-soft)", color: "var(--text)" }}>
+        <WalletIcon size={14} /> Gunakan Tabungan
+      </button>
+      {open && (
+        <form
+          action={(fd) => {
+            fd.set("savingsAccountId", savingsAccountId);
+            startTransition(async () => {
+              try {
+                await withdrawFromSavings(fd);
+                setOpen(false);
+                toast.success("Tabungan ditarik & dipakai — catatan tabungan berkurang permanen");
+              } catch (e: any) {
+                toast.error(e.message ?? "Gagal menarik tabungan");
+              }
+            });
+          }}
+          className="mt-2 space-y-2 mf-card p-3"
+        >
+          <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>
+            Beda dengan "Ambil (Pinjam)": ini penarikan PERMANEN, tidak jadi hutang, dan langsung mengurangi
+            catatan Tabungan Tetap. Maks bisa ditarik: {new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(available)}.
+          </p>
+          <select name="walletId" required className="mf-input text-xs">
+            {wallets.map((w) => <option key={w.id} value={w.id}>{w.name}</option>)}
+          </select>
+          <input name="amount" type="number" step="0.01" max={available} required placeholder="Nominal" className="mf-input text-xs" />
+          <button type="submit" disabled={isPending} className="rounded-lg px-3 py-1.5 text-xs font-semibold w-full text-white" style={{ background: "var(--text)" }}>
+            Tarik & Gunakan
           </button>
         </form>
       )}
