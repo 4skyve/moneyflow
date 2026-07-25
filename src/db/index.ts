@@ -12,6 +12,12 @@ const pool =
   mysql.createPool({
     uri: process.env.DATABASE_URL,
     connectionLimit: 5,
+    ssl: {
+      // Aiven wajib pakai SSL. rejectUnauthorized: false artinya
+      // koneksi tetap terenkripsi tapi tidak verifikasi cert server
+      // (setara dengan --ssl-mode=REQUIRED yang kamu pakai pas restore).
+      rejectUnauthorized: false,
+    },
   });
 
 if (process.env.NODE_ENV !== "production") global.__mfPool = pool;
